@@ -1,20 +1,22 @@
 import numpy as np
-from util import PriorityQueue
+from pq import PriorityQueue
 from math import *
 
 class Layer:
-    def __init__(self, in_size, out_size, threshold=0.5):
+    def __init__(self, in_size, out_size, threshold=0.5, learning_rate=1e-1):
         self.in_size = in_size
         self.out_size = out_size
         self.threshold = threshold
         # 2% of the output should be active
         self.max_active = ceil(out_size * 0.02)
+        self.learning_rate = learning_rate
 
         # Binary activation
         self.bin_threshold = np.vectorize(lambda x: 1 if x > self.threshold else 0)
 
         # Learned parameters
         dim = (out_size, in_size)
+        # Potential connections
         self.synapse = np.mat(np.zeros(dim), dtype='bool')
         # Float between 0 and 1 specifying how strong the connections are.
         self.permanence = np.mat(np.random.uniform(0, 1, (dim)))
@@ -27,12 +29,29 @@ class Layer:
         Parameters:
             - input: Input boolean vector
         """
-        # TODO: Boost the active ones?
         overlap_scores = input * self.connections
 
         # Apply global inhibition (pick top n scores)
         inhibited = self.global_inhibit(overlap_scores)
-        return self.bin_threshold(inhibited)
+        output = self.bin_threshold(inhibited)
+        return output
+
+    def learn(self, input, output):
+        # Adjust permanences of only active output units
+        for i in range(self.out_size):
+            if output[0, i]:
+                # This output was active, adjust permanences
+                for j in range(self.in_size):
+                    perm = self.permanence[j, i]
+                    if self.connections[j, i] == 1 and input[0, j] == 1:
+                        # Input and connection aligned. Increase permanence.
+                        self.permanence[j, i] = min(perm + self.learning_rate, 1)
+                    else:
+                        # Input and connection not aligned. Decrease permanence.
+                        self.permanence[j, i] = max(perm - self.learning_rate, 0)
+
+        # Determine which connections are now connected
+        self.update_connections()
 
     def global_inhibit(self, overlap_scores):
         # Set of outputs to keep

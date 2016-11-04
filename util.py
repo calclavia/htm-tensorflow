@@ -1,50 +1,46 @@
-import heapq
+import struct
 
-class PriorityQueue:
+def chunk(l, size):
     """
-      Implements a priority queue data structure. Each inserted item
-      has a priority associated with it and the client is usually interested
-      in quick retrieval of the lowest-priority item in the queue. This
-      data structure allows O(1) access to the lowest-priority item.
+    Chunks a list by size
     """
-    def  __init__(self):
-        self.heap = []
-        self.count = 0
+    return [l[x:x+size] for x in range(0, len(l), size)]
 
-    def push(self, item, priority):
-        entry = (priority, self.count, item)
-        heapq.heappush(self.heap, entry)
-        self.count += 1
+def load_mnist(images, labels, limit):
+    """
+    Takes two filenames "images" and "labels" and reads
+    them, returning a tuple containing a list of images
+    to their corresponding labels (indexed).
+    """
+    # Read images
+    with open(images, 'rb') as f_images:
+        # Read the image data header
+        f_magic, size, rows, cols = struct.unpack(">IIII", f_images.read(16))
+        # Extract raw image data as unsigned bytes
+        img_raw_data = list(f_images.read())
 
-    def pop(self):
-        (_, _, item) = heapq.heappop(self.heap)
-        return item
+    # Chunk each image separately, and limit the # of images
+    dimension = rows * cols
+    images = chunk(img_raw_data, dimension)[:limit]
 
-    def pushpop(self, item, priority):
-        entry = (priority, self.count, item)
-        (_, _, item) = heapq.heappushpop(self.heap, entry)
-        return item
+    # Read labels
+    with open(labels, 'rb') as f_labels:
+        f_magic, size = struct.unpack(">II", f_labels.read(8))
+        # Extract raw image data as unsigned bytes
+        labels = list(f_labels.read())[:limit]
 
-    def peek(self):
-        return self.heap[0][2]
+    return (images, labels, dimension)
 
-    def empty(self):
-        return len(self.heap) == 0
+def load_mnist_all(train_n=20000, validate_n=2000):
+    train_images, train_labels, *_ = load_mnist('data/train-images-idx3-ubyte', 'data/train-labels-idx1-ubyte', train_n)
+    images, labels, *_ = load_mnist('data/t10k-images-idx3-ubyte', 'data/t10k-labels-idx1-ubyte', validate_n)
+    return (train_images, train_labels, images, labels)
 
-    def size(self):
-        return len(self.heap)
 
-    def update(self, item, priority):
-        # If item already in priority queue with higher priority, update its priority and rebuild the heap.
-        # If item already in priority queue with equal or lower priority, do nothing.
-        # If item not in priority queue, do the same thing as self.push.
-        for index, (p, c, i) in enumerate(self.heap):
-            if i == item:
-                if p <= priority:
-                    break
-                del self.heap[index]
-                self.heap.append((priority, c, item))
-                heapq.heapify(self.heap)
-                break
-        else:
-            self.push(item, priority)
+def progress_bar(percent, size=20):
+    """
+    Print progress bar
+    """
+    sys.stdout.write('\r')
+    sys.stdout.write(("[%-" + str(size) + "s] %d%%") % ('=' * int(size * percent), 100 * percent))
+    sys.stdout.flush()
