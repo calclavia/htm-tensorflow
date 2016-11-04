@@ -19,7 +19,7 @@ class Layer:
         # Potential connections
         self.synapse = np.mat(np.zeros(dim), dtype='bool')
         # Float between 0 and 1 specifying how strong the connections are.
-        self.permanence = np.mat(np.random.uniform(0, 1, (dim)))
+        self.permanence = np.mat(np.random.uniform(0, 1, dim))
         self.update_connections()
 
     def forward(self, input):
@@ -29,7 +29,7 @@ class Layer:
         Parameters:
             - input: Input boolean vector
         """
-        overlap_scores = input * self.connections
+        overlap_scores = self.connections * input
 
         # Apply global inhibition (pick top n scores)
         inhibited = self.global_inhibit(overlap_scores)

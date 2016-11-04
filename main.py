@@ -6,13 +6,13 @@ def main():
     print('Loading data')
     train_images, train_labels, images, labels = load_mnist_all()
 
-    print('Processing data')
-    train_images = [np.matrix(x) for x in train_images]
-
     train_size = len(train_images)
     input_size = len(train_images[0])
 
-    print('Testing new layer')
+    print('Processing data')
+    train_images = [np.matrix(x).T for x in train_images]
+
+    print('Training',input_size)
     layer = Layer(input_size, 10)
 
     epoch = 10
