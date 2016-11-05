@@ -1,4 +1,5 @@
 import struct
+import sys
 
 def chunk(l, size):
     """

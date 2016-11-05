@@ -3,7 +3,7 @@ from pq import PriorityQueue
 from math import *
 
 class Layer:
-    def __init__(self, in_size, out_size, threshold=0.5, learning_rate=1e-1):
+    def __init__(self, in_size, out_size, threshold=0.5, learning_rate=1e-2):
         self.in_size = in_size
         self.out_size = out_size
         self.threshold = threshold
@@ -15,7 +15,7 @@ class Layer:
         self.bin_threshold = np.vectorize(lambda x: 1 if x > self.threshold else 0)
 
         # Learned parameters
-        dim = (out_size, in_size)
+        dim = (in_size, out_size)
         # Potential connections
         self.synapse = np.mat(np.zeros(dim), dtype='bool')
         # Float between 0 and 1 specifying how strong the connections are.
@@ -29,7 +29,7 @@ class Layer:
         Parameters:
             - input: Input boolean vector
         """
-        overlap_scores = self.connections * input
+        overlap_scores = input * self.connections
 
         # Apply global inhibition (pick top n scores)
         inhibited = self.global_inhibit(overlap_scores)
@@ -43,6 +43,8 @@ class Layer:
                 # This output was active, adjust permanences
                 for j in range(self.in_size):
                     perm = self.permanence[j, i]
+
+                    # TODO: Try adaptaive learning rate
                     if self.connections[j, i] == 1 and input[0, j] == 1:
                         # Input and connection aligned. Increase permanence.
                         self.permanence[j, i] = min(perm + self.learning_rate, 1)
