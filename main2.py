@@ -5,9 +5,10 @@ from math import *
 
 inhibit_module = tf.load_op_library('./inhibit.so')
 
-epochs = 1
+epochs = 2
 dim = (10, 10)
 sparsity = 0.2
+learning_rate = 0.1
 
 output_zeros = int(dim[1] * (1 - sparsity))
 
@@ -27,12 +28,6 @@ c = tf.Variable(tf.zeros(weight_dim), name='Connections')
 """
 Operations
 """
-def tf_count(t, val):
-    elements_equal_to_value = tf.equal(t, val)
-    as_ints = tf.cast(elements_equal_to_value, tf.int32)
-    count = tf.reduce_sum(as_ints)
-    return count
-
 # Defines the condition to conert permanence into connections
 p_cond = tf.greater(p, 0)
 
@@ -44,6 +39,17 @@ activation = tf.matmul(x, c)
 
 # Output vector
 y = inhibit_module.inhibit(activation)
+
+# Compute the delta permanence matrix
+# Start with the connection matrix
+# Every connection that was aligned with an input = 1. 0 otherwise.
+input_rowed = tf.transpose(tf.matmul(tf.transpose(x), tf.ones_like(x)))
+# Elementwise product between connection matrix and the input rows
+# Rescale values to be between -1 and 1
+alignment = (c * input_rowed - 0.5) * 2
+# TODO: Only update weights to active outputs, so zero-out non-active output rows (no change)
+delta = learning_rate * alignment
+learn = tf.assign(p, tf.add(p, delta))
 
 init_op = tf.initialize_all_variables()
 
@@ -63,6 +69,6 @@ with tf.Session() as sess:
     sess.run(init_op)
     sess.run(update_connections)
 
-    for _ in range(1):
-        result, = sess.run([y], feed_dict={x: [[0,0,0,0,1,0,0,0,1,0]]})
-        print(result)
+    for _ in range(epochs):
+        result, learned_p = sess.run([y, learn], feed_dict={x: [[0,0,0,0,1,0,0,0,1,0]]})
+        print(result, learned_p)
