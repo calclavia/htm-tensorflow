@@ -12,14 +12,14 @@ def main():
     output_size = 10
 
     print('Processing...')
-    train_images = [np.mat(x) for x in train_images]
-    images = [np.mat(x) for x in images]
+    train_images = [np.mat([min(y, 1) for y in x]) for x in train_images]
+    images = [np.mat([min(y, 1) for y in x]) for x in images]
 
     print('Training...')
     layer = Layer(input_size, output_size)
 
     classes = 10
-    epoch = 1
+    epoch = 10
 
     for i in range(epoch):
         print('=== Epoch ' + str(i) + ' ===')
