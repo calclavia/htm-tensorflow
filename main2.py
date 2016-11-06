@@ -3,6 +3,8 @@ import numpy as np
 from pq import PriorityQueue
 from math import *
 
+inhibit_module = tf.load_op_library('./inhibit.so')
+
 epochs = 1
 dim = (10, 10)
 sparsity = 0.2
@@ -31,31 +33,6 @@ def tf_count(t, val):
     count = tf.reduce_sum(as_ints)
     return count
 
-def global_inhibit(overlap_scores, out_size, max_active):
-    # Set of outputs to keep
-    keep = PriorityQueue()
-
-    for i in range(out_size):
-        score = overlap_scores[0][i]
-
-        if keep.empty() or score > keep.peek():
-            # We want this score to be kept
-
-            if keep.size() < max_active:
-                keep.update(i, score)
-            else:
-                # Replace the lowest score in keep with this one
-                keep.pushpop(i, score)
-
-    # Set all indices not kept to 0
-    keep_indicies = {i for _, _, i in keep.heap}
-
-    for i in range(out_size):
-        if i not in keep_indicies:
-            overlap_scores[0][i] = 0
-
-    return overlap_scores
-
 # Defines the condition to conert permanence into connections
 p_cond = tf.greater(p, 0)
 
@@ -65,8 +42,8 @@ update_connections = tf.assign(c, tf.select(p_cond, tf.ones(weight_dim), tf.zero
 # Compute the activation before inhibition applied
 activation = tf.matmul(x, c)
 
-# TODO: Output vector
-y = tf.while_loop(lambda a: tf_count(a, 0) < output_zeros, lambda a: tf.sub(a, tf.ones(1)), [activation])
+# Output vector
+y = inhibit_module.inhibit(activation)
 
 init_op = tf.initialize_all_variables()
 
@@ -87,5 +64,5 @@ with tf.Session() as sess:
     sess.run(update_connections)
 
     for _ in range(1):
-        result = sess.run([activation], feed_dict={x: [[0,0,0,0,1,0,0,0,1,0]]})
-        print(global_inhibit(result, 10, 2))
+        result, = sess.run([y], feed_dict={x: [[0,0,0,0,1,0,0,0,1,0]]})
+        print(result)
