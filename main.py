@@ -4,6 +4,8 @@ from util import *
 from math import *
 from layer import *
 
+import matplotlib.pyplot as plt
+
 epochs = 10
 dim = [784, 10]
 sparsity = 0.2
@@ -46,7 +48,9 @@ with tf.Session() as sess:
         for c in range(len(clusters)):
             clusters[c] /= counts[c]
 
+        print(sess.run(layer.p))
         print(clusters[0])
+        print(clusters[1])
 
         print(' == Validating == ')
 

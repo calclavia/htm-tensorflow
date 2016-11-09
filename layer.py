@@ -12,10 +12,10 @@ class Layer:
         self.x = tf.placeholder(tf.float32, [1, dim[0]], name='Input')
 
         # Permanence of connections between neurons
-        p = tf.Variable(tf.random_uniform(dim, -1, 1), name='Permanence')
+        self.p = tf.Variable(tf.random_uniform(dim, -1, 1), name='Permanence')
 
         # Defines the condition to convert permanence into connections
-        p_cond = tf.greater(p, 0)
+        p_cond = tf.greater(self.p, 0)
 
         # TODO: Synapse matrix for what can possibly connect
         # Connection matrix, dependent on the permenance values
@@ -43,4 +43,4 @@ class Layer:
         # We do this by constructing a diagonal matrix that scales rows to zero
         zero_out = tf.diag(self.y[0])
         delta = learning_rate * tf.matmul(alignment, zero_out)
-        self.learn = tf.assign(p, tf.add(p, delta))
+        self.learn = tf.assign(self.p, tf.maximum(tf.add(self.p, delta), tf.ones_like(self.p) * -1))
