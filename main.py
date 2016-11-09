@@ -4,7 +4,7 @@ from util import *
 from math import *
 from layer import *
 
-epochs = 2
+epochs = 10
 dim = [784, 10]
 sparsity = 0.2
 learning_rate = 0.1
@@ -12,24 +12,6 @@ learning_rate = 0.1
 layer = Layer(dim, sparsity, learning_rate)
 
 init_op = tf.initialize_all_variables()
-
-def validate():
-    correct = 0
-    for input, c in zip(images, labels):
-        # Find best match in cluster
-        best_class = None
-        min_norm = inf
-        output = layer.forward(input)
-        for k, cluster in enumerate(clusters):
-            diff = np.linalg.norm(cluster - output)
-            if diff < min_norm:
-                min_norm = diff
-                best_class = k
-
-        # Validate if best class is correct
-        if c == best_class:
-            correct += 1
-    return correct / float(len(images))
 
 # Load MNSIT
 from tensorflow.examples.tutorials.mnist import input_data
@@ -65,3 +47,23 @@ with tf.Session() as sess:
             clusters[c] /= counts[c]
 
         print(clusters[0])
+
+        print(' == Validating == ')
+
+        correct = 0
+        for input, c in zip(mnist.validation.images, mnist.validation.labels):
+            # Find best match in cluster
+            best_class = None
+            min_norm = inf
+            output = sess.run(layer.y, feed_dict={layer.x: [input]})
+            for k, cluster in enumerate(clusters):
+                diff = np.linalg.norm(cluster - output)
+                if diff < min_norm:
+                    min_norm = diff
+                    best_class = k
+
+            # Validate if best class is correct
+            if c == best_class:
+                correct += 1
+
+        print('Accuracy: ', correct / float(len(mnist.validation.images)))
