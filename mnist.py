@@ -7,13 +7,10 @@ from layers.spatial_pooler import SpatialPoolingLayer
 import matplotlib.pyplot as plt
 
 epochs = 10
-dim = [784, 10]
-sparsity = 0.02
-learning_rate = 0.1
 
 def build_model():
     # Model input
-    x = tf.placeholder(tf.bool, [1, dim[0]], name='Input')
+    x = tf.placeholder(tf.bool, [1, 784], name='Input')
     y = SpatialPoolingLayer(1024)(x)
     return y
 
@@ -30,7 +27,7 @@ def main():
 
     with tf.Session() as sess:
         # Run the 'init' op
-        sess.run(tf.global_variables.initializer())
+        sess.run(tf.global_variables_initializer())
 
 
         for epoch in range(epochs):
@@ -78,3 +75,6 @@ def main():
                     correct += 1
 
             print('Accuracy: ', correct / float(len(mnist.validation.images)))
+
+if __name__ == '__main__':
+    main()
