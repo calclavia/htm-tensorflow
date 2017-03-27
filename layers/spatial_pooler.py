@@ -7,7 +7,7 @@ class SpatialPooler(Layer):
     """
     Represents the spatial pooling computation layer
     """
-    def __init__(self, output_dim, sparsity=0.02, lr=1e-2, **kwargs):
+    def __init__(self, output_dim, sparsity=0.02, lr=0.05, **kwargs):
         """
         Args:
             - output_dim: Size of the output dimension
@@ -35,7 +35,7 @@ class SpatialPooler(Layer):
         # TODO: Only global inhibition is implemented.
         # TODO: Implement boosting
         # Compute the overlap score between input
-        overlap = tf.matmul(tf.to_float(x), self.connection)
+        overlap = tf.matmul(x, self.connection)
 
         # Compute active mini-columns.
         # The top k activations of given sparsity activates
@@ -66,7 +66,7 @@ class SpatialPooler(Layer):
         active_cons = tf.matmul(self.connection, tf.diag(y[0]))
 
         # Shift input X from 0, 1 to -1, 1.
-        x_shifted = 2 * tf.to_float(x) - 1
+        x_shifted = 2 * x - 1
         # Compute delta matrix, which contains -1 for all connections to punish
         # and 1 for all connections to reinforce. Use broadcasting behavior.
         delta = tf.transpose(x_shifted * tf.transpose(active_cons))

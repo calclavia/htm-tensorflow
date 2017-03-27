@@ -18,7 +18,7 @@ class Model:
     def __init__(self):
         pooler = SpatialPooler(2 ** 11)
         # Model input
-        self.x = tf.placeholder(tf.bool, [1, 784], name='Input')
+        self.x = tf.placeholder(tf.float32, [1, 784], name='Input')
         self.y = pooler(self.x)
         self.train_ops = pooler.train_ops
 
