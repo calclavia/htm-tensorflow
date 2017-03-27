@@ -63,7 +63,8 @@ class SpatialPooler(Layer):
         """
         # Construct a binary connection matrix with all non-active mini-columns
         # masked to zero. This contains all connections to active units.
-        active_cons = tf.matmul(self.connection, tf.diag(y[0]))
+        # Multiply using broadcasting behavior to mask out inactive units.
+        active_cons = y * self.connection
 
         # Shift input X from 0, 1 to -1, 1.
         x_shifted = 2 * x - 1
