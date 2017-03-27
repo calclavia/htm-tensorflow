@@ -44,18 +44,28 @@ class SpatialPoolingLayer(Layer):
 
     def train(self, x, y):
         """
-        Weight update
+        Weight update using Hebbian learning rule.
+
+        For each active SP mini-column, we reinforce active input connections
+        by increasing the permanence, and punish inactive connections by
+        decreasing the permanence.
+        We only want to modify permances of connections in active mini-columns.
+        Ignoring all non-connections.
+        Connections are clipped between 0 and 1.
         """
-        # Compute the delta permanence matrix
-        # Start with the connection matrix
-        # Every connection that was aligned with an input = 1. 0 otherwise.
-        # Stack the input vector into n columns, where n = # of output units
-        input_columned = tf.matmul(tf.transpose(x), tf.ones([1, dim[1]]))
-        # Elementwise product between connection matrix and the input rows
-        # Rescale values to be between -1 and 1
-        alignment = (c * input_columned - 0.5) * 2
-        # Only update weights to active outputs, so zero-out non-active output rows
-        # We do this by constructing a diagonal matrix that scales rows to zero
-        zero_out = tf.diag(y[0])
-        delta = learning_rate * tf.matmul(alignment, zero_out)
-        self.learn = tf.assign(self.p, tf.maximum(tf.add(self.p, delta), tf.ones_like(self.p) * -1))
+        # Construct a binary connection matrix with all non-active mini-columns
+        # masked to zero. This contains all connections to active units.
+        active_cons = tf.matmul(c, tf.diag(y[0]))
+
+        # Shift input X from 0, 1 to -1, 1.
+        x_shifted = 2 * tf.to_int32(x) - 1
+        # Compute delta matrix, which contains -1 for all connections to punish
+        # and 1 for all connections to reinforce. Use broadcasting behavior.
+        delta = tf.transpose(x_shifted * tf.transpose(active_cons))
+
+        # Apply learning rate multiplier
+        new_p = tf.clip_by_value(self.p + self.learning_rate * delta, 0, 1)
+
+        # Create train op
+        train_op = tf.assign(self.p, new_p)
+        return tran_op
