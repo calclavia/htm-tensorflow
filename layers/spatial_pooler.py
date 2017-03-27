@@ -7,7 +7,7 @@ class SpatialPooler(Layer):
     """
     Represents the spatial pooling computation layer
     """
-    def __init__(self, output_dim, sparsity=0.02, lr=0.1, **kwargs):
+    def __init__(self, output_dim, sparsity=0.02, lr=1e-2, **kwargs):
         """
         Args:
             - output_dim: Size of the output dimension
@@ -45,7 +45,9 @@ class SpatialPooler(Layer):
         act_indicies = tf.to_int64(tf.pad(tf.reshape(act_indicies, [self.top_k, 1]), [[0, 0], [1, 0]]))
         act_vals = tf.ones((self.top_k,))
         activation = tf.SparseTensor(act_indicies, act_vals, [1, self.output_dim])
-        activation = tf.sparse_tensor_to_dense(activation)
+        print(activation,  self.output_dim)
+        # TODO: Keeping it as a sparse tensor is more efficient.
+        activation = tf.sparse_tensor_to_dense(activation, validate_indices=False)
         return activation
 
     def train(self, x, y):

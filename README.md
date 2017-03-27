@@ -1,4 +1,5 @@
-# htm-tensorflow
+# Hierarchical Temporal Memory in Tensorflow
 An implementation of Numenta's HTM algorithm in Tensorflow.
+API design based on Keras API.
 
-WIP
+Work in progress.

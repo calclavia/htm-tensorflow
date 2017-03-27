@@ -1,6 +1,12 @@
+"""
+MNIST Example.
+Make sure the MNIST dataset is in the data/ folder
+"""
 import tensorflow as tf
+from tensorflow.examples.tutorials.mnist import input_data
 import numpy as np
-from util import *
+from tqdm import tqdm
+
 from math import *
 from layers import SpatialPooler
 
@@ -8,40 +14,38 @@ import matplotlib.pyplot as plt
 
 epochs = 10
 
-def build_model():
-    # Model input
-    x = tf.placeholder(tf.float32, [1, 784], name='Input')
-    y = SpatialPooler(1024)(x)
-    return y
+class Model:
+    def __init__(self):
+        pooler = SpatialPooler(2 ** 11)
+        # Model input
+        self.x = tf.placeholder(tf.bool, [1, 784], name='Input')
+        self.y = pooler(self.x)
+        self.train_ops = pooler.train_ops
 
 def main():
     # Build a model
-    model = build_model()
+    model = Model()
 
     # Load MNSIT
-    from tensorflow.examples.tutorials.mnist import input_data
     mnist = input_data.read_data_sets("data/", one_hot=False)
 
-    # Process data
-    input_set = [[x] for x in mnist.train.images[:10000]]
+    # Process data using simple black and white encoder
+    input_set = [[np.round(x)] for x in mnist.train.images]
 
     with tf.Session() as sess:
         # Run the 'init' op
         sess.run(tf.global_variables_initializer())
 
-
         for epoch in range(epochs):
             print('===     Epoch ' + str(epoch) + '     ===')
-            for i, x in enumerate(input_set):
-                sess.run([layer.y, layer.learn], feed_dict={layer.x: x})
-                progress_bar(i / float(len(input_set)))
-            print()
+            for i, x in enumerate(tqdm(input_set)):
+                sess.run(model.train_ops, feed_dict={ model.x: x })
 
-            print(' == Clustering ==')
             """
+            print(' == Clustering ==')
             Take all the inputs and determine its cluster based on
             average values.
-            """
+            ""
             counts = [0 for _ in range(dim[1])]
             clusters = [0 for _ in range(dim[1])]
 
@@ -75,6 +79,7 @@ def main():
                     correct += 1
 
             print('Accuracy: ', correct / float(len(mnist.validation.images)))
+            """
 
 if __name__ == '__main__':
     main()
