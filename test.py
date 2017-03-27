@@ -2,14 +2,14 @@ import unittest
 import tensorflow as tf
 import numpy.testing as test
 
-from layers.spatial_pooler import SpatialPoolingLayer
+from layers import SpatialPooler
 
 class SPTest(unittest.TestCase):
     def test_call(self):
         """
         Test forward computation
         """
-        layer = SpatialPoolingLayer(4)
+        layer = SpatialPooler(4)
         x = tf.placeholder(tf.float32, [1, 4], name='Input')
         y = layer(x)
 
@@ -32,7 +32,7 @@ class SPTest(unittest.TestCase):
         """
         Test forward computation
         """
-        layer = SpatialPoolingLayer(4, lr=0.1)
+        layer = SpatialPooler(4, lr=0.1)
         x = tf.placeholder(tf.float32, [1, 4], name='Input')
         layer.build([1, 4])
         train = layer.train(x, tf.constant([[0., 1, 0, 1]]))

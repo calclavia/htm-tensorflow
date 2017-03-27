@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from util import *
 from math import *
-from layers.spatial_pooler import SpatialPoolingLayer
+from layers import SpatialPooler
 
 import matplotlib.pyplot as plt
 
@@ -11,7 +11,7 @@ epochs = 10
 def build_model():
     # Model input
     x = tf.placeholder(tf.float32, [1, 784], name='Input')
-    y = SpatialPoolingLayer(1024)(x)
+    y = SpatialPooler(1024)(x)
     return y
 
 def main():

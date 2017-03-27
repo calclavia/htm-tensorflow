@@ -3,7 +3,7 @@ import numpy as np
 
 from .layer import Layer
 
-class SpatialPoolingLayer(Layer):
+class SpatialPooler(Layer):
     """
     Represents the spatial pooling computation layer
     """
