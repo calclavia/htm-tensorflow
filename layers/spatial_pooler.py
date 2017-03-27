@@ -7,30 +7,35 @@ class SpatialPoolingLayer(Layer):
     """
     Represents the spatial pooling computation layer
     """
-    def __init__(self, output_dim, sparsity=0.02, learning_rate=0.1, **kwargs):
+    def __init__(self, output_dim, sparsity=0.02, lr=0.1, **kwargs):
+        """
+        Args:
+            - output_dim: Size of the output dimension
+            - sparsity: The target sparsity to achieve
+            - lr: The learning rate in which permenance is updated
+        """
         self.output_dim = output_dim
         self.sparsity = sparsity
-        self.learning_rate = learning_rate
-        self.top_k = int(self.sparsity * np.prod(self.output_dim))
-        print('Spatial pooling layer with top-k=', self.top_k)
+        self.lr = lr
+        self.top_k = int(np.ceil(self.sparsity * np.prod(self.output_dim)))
         super().__init__(**kwargs)
 
     def build(self, input_shape):
         # TODO: Implement potential pool matrix
         # Permanence of connections between neurons
         self.p = tf.Variable(tf.random_uniform((input_shape[1], self.output_dim), 0, 1), name='Permanence')
-        super().build(input_shape)
 
-    def call(self, x):
         # TODO: Implement potential pool matrix
         # Connection matrix, dependent on the permenance values
         # If permenance > 0.5, we are connected.
-        connection = tf.to_int32(tf.round(self.p))
+        self.connection = tf.round(self.p)
+        super().build(input_shape)
 
+    def call(self, x):
         # TODO: Only global inhibition is implemented.
         # TODO: Implement boosting
         # Compute the overlap score between input
-        overlap = tf.matmul(tf.to_int32(x), connection)
+        overlap = tf.matmul(tf.to_float(x), self.connection)
 
         # Compute active mini-columns.
         # The top k activations of given sparsity activates
@@ -40,6 +45,7 @@ class SpatialPoolingLayer(Layer):
         act_indicies = tf.to_int64(tf.pad(tf.reshape(act_indicies, [self.top_k, 1]), [[0, 0], [1, 0]]))
         act_vals = tf.ones((self.top_k,))
         activation = tf.SparseTensor(act_indicies, act_vals, [1, self.output_dim])
+        activation = tf.sparse_tensor_to_dense(activation)
         return activation
 
     def train(self, x, y):
@@ -55,17 +61,17 @@ class SpatialPoolingLayer(Layer):
         """
         # Construct a binary connection matrix with all non-active mini-columns
         # masked to zero. This contains all connections to active units.
-        active_cons = tf.matmul(c, tf.diag(y[0]))
+        active_cons = tf.matmul(self.connection, tf.diag(y[0]))
 
         # Shift input X from 0, 1 to -1, 1.
-        x_shifted = 2 * tf.to_int32(x) - 1
+        x_shifted = 2 * tf.to_float(x) - 1
         # Compute delta matrix, which contains -1 for all connections to punish
         # and 1 for all connections to reinforce. Use broadcasting behavior.
         delta = tf.transpose(x_shifted * tf.transpose(active_cons))
 
         # Apply learning rate multiplier
-        new_p = tf.clip_by_value(self.p + self.learning_rate * delta, 0, 1)
+        new_p = tf.clip_by_value(self.p + self.lr * delta, 0, 1)
 
         # Create train op
         train_op = tf.assign(self.p, new_p)
-        return tran_op
+        return train_op

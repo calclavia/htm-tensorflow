@@ -10,7 +10,7 @@ epochs = 10
 
 def build_model():
     # Model input
-    x = tf.placeholder(tf.bool, [1, 784], name='Input')
+    x = tf.placeholder(tf.float32, [1, 784], name='Input')
     y = SpatialPoolingLayer(1024)(x)
     return y
 
