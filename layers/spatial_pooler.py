@@ -7,28 +7,34 @@ class SpatialPooler(Layer):
     """
     Represents the spatial pooling computation layer
     """
-    def __init__(self, output_dim, sparsity=0.02, lr=0.05, **kwargs):
+    def __init__(self, output_dim, sparsity=0.02, lr=1e-3, pool_density=0.5, **kwargs):
         """
         Args:
             - output_dim: Size of the output dimension
             - sparsity: The target sparsity to achieve
             - lr: The learning rate in which permenance is updated
+            - pool_density: Percent of input a cell is connected to on average.
         """
         self.output_dim = output_dim
         self.sparsity = sparsity
         self.lr = lr
+        self.pool_density = pool_density
         self.top_k = int(np.ceil(self.sparsity * np.prod(self.output_dim)))
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        # TODO: Implement potential pool matrix
         # Permanence of connections between neurons
         self.p = tf.Variable(tf.random_uniform((input_shape[1], self.output_dim), 0, 1), name='Permanence')
 
-        # TODO: Implement potential pool matrix
+        # Potential pool matrix
+        # Masks out the connections randomly
+        rand_mask = np.random.binomial(1, self.pool_density, input_shape[1] * self.output_dim)
+        pool_mask = tf.constant(np.reshape(rand_mask, [input_shape[1], self.output_dim]), dtype=tf.float32)
+
         # Connection matrix, dependent on the permenance values
         # If permenance > 0.5, we are connected.
-        self.connection = tf.round(self.p)
+        self.connection = tf.round(self.p) * pool_mask
+
         super().build(input_shape)
 
     def call(self, x):

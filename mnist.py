@@ -16,7 +16,7 @@ epochs = 10
 
 class Model:
     def __init__(self):
-        pooler = SpatialPooler(2 ** 11)
+        pooler = SpatialPooler(2 ** 11, lr=1e-2)
         # Model input
         self.x = tf.placeholder(tf.float32, [1, 784], name='Input')
         self.y = pooler(self.x)
@@ -29,13 +29,16 @@ def main():
     # Load MNSIT
     mnist = input_data.read_data_sets("data/", one_hot=False)
 
-    # Process data using simple black and white encoder
-    total_num_data = len(mnist.train.images) // 2
+    # Process data using simple greyscale encoder
+    all_data = mnist.train.images
+    all_labels = mnist.train.labels
+
+    total_num_data = len(all_data) // 2
     num_data = int(total_num_data * 0.8)
     num_validate = total_num_data - num_data
 
-    input_set = [[np.round(x)] for x in mnist.train.images[:num_data]]
-    val_set = [[np.round(x)] for x in mnist.train.images[num_data:num_data+num_validate]]
+    input_set = [[np.round(x)] for x in all_data[:num_data]]
+    val_set = [[np.round(x)] for x in all_data[num_data:num_data+num_validate]]
     val_labels = mnist.train.labels[num_data:num_data+num_validate]
 
     # Find one of each label
@@ -54,7 +57,7 @@ def main():
         label_mappings = {}
 
         for label in range(10):
-            x = [mnist.train.images[label_indicies[label]]]
+            x = [all_data[label_indicies[label]]]
             label_mappings[label] = sess.run(model.y, feed_dict={ model.x: x })
 
         correct = 0

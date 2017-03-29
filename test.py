@@ -9,7 +9,7 @@ class SPTest(unittest.TestCase):
         """
         Test forward computation
         """
-        layer = SpatialPooler(4)
+        layer = SpatialPooler(4, pool_density=1)
         x = tf.placeholder(tf.float32, [1, 4], name='Input')
         y = layer(x)
 
@@ -32,7 +32,7 @@ class SPTest(unittest.TestCase):
         """
         Test forward computation
         """
-        layer = SpatialPooler(4, lr=0.1)
+        layer = SpatialPooler(4, lr=0.1, pool_density=1)
         x = tf.placeholder(tf.float32, [1, 4], name='Input')
         layer.build([1, 4])
         train = layer.train(x, tf.constant([[0., 1, 0, 1]]))
