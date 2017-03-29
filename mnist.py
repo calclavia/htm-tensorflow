@@ -95,7 +95,7 @@ def main():
                 x = input_set[i]
                 sess.run(model.train_ops, feed_dict={ model.x: x })
 
-    with tf.device('cpu:0'), tf.Session() as sess:
+    with tf.Session() as sess:
         # Run the 'init' op
         sess.run(tf.global_variables_initializer())
 

@@ -9,7 +9,7 @@ class SPTest(unittest.TestCase):
         """
         Test forward computation
         """
-        layer = SpatialPooler(4, pool_density=1)
+        layer = SpatialPooler(4, pool_density=1, boost_strength=0)
         x = tf.placeholder(tf.float32, [1, 4], name='Input')
         y = layer(x)
 
@@ -32,7 +32,7 @@ class SPTest(unittest.TestCase):
         """
         Test forward computation
         """
-        layer = SpatialPooler(4, lr=0.1, pool_density=1)
+        layer = SpatialPooler(4, lr=0.1, pool_density=1, boost_strength=0)
         x = tf.placeholder(tf.float32, [1, 4], name='Input')
         layer.build([1, 4])
         train = layer.train(x, tf.constant([[0., 1, 0, 1]]))
@@ -51,7 +51,7 @@ class SPTest(unittest.TestCase):
             # Compute
             result = sess.run(train, { x: [[1, 1, 0, 1]] })
             # Check the new permenance
-            test.assert_allclose(result, [
+            test.assert_allclose(result[0], [
                 [0.6, 0,   0.6, 0.7],
                 [0,   0.7, 0,   0  ],
                 [0.6, 0.5, 0.6, 0  ],

@@ -7,7 +7,8 @@ class SpatialPooler(Layer):
     """
     Represents the spatial pooling computation layer
     """
-    def __init__(self, output_dim, sparsity=0.02, lr=1e-3, pool_density=0.5, **kwargs):
+    def __init__(self, output_dim, sparsity=0.02, lr=1e-2, pool_density=1,
+                 duty_cycle=1000, boost_strength=100, **kwargs):
         """
         Args:
             - output_dim: Size of the output dimension
@@ -19,6 +20,8 @@ class SpatialPooler(Layer):
         self.sparsity = sparsity
         self.lr = lr
         self.pool_density = pool_density
+        self.duty_cycle = duty_cycle
+        self.boost_strength = boost_strength
         self.top_k = int(np.ceil(self.sparsity * np.prod(self.output_dim)))
         super().__init__(**kwargs)
 
@@ -35,13 +38,21 @@ class SpatialPooler(Layer):
         # If permenance > 0.5, we are connected.
         self.connection = tf.round(self.p) * pool_mask
 
+        # Time-averaged activation level for each mini-column
+        self.avg_activation = tf.Variable(tf.zeros([1, self.output_dim]))
+
         super().build(input_shape)
 
     def call(self, x):
+        # Boosting calculations
+        # The recent activity in the mini-column's (global) neighborhood
+        unidentity = tf.constant(-np.identity(self.output_dim) + 1, dtype=tf.float32)
+        neighbor_activity = tf.matmul(self.avg_activation, unidentity) / (self.output_dim - 1)
+        boost_factor = tf.exp(-self.boost_strength * (self.avg_activation - neighbor_activity))
+
         # TODO: Only global inhibition is implemented.
-        # TODO: Implement boosting
         # Compute the overlap score between input
-        overlap = tf.matmul(x, self.connection)
+        overlap = tf.matmul(x, self.connection) * boost_factor
 
         # Compute active mini-columns.
         # The top k activations of given sparsity activates
@@ -83,4 +94,9 @@ class SpatialPooler(Layer):
 
         # Create train op
         train_op = tf.assign(self.p, new_p)
-        return train_op
+
+        # Update the average activation levels
+        new_act_avg = ((self.duty_cycle - 1) * self.avg_activation + y) / self.duty_cycle
+        update_act_op = tf.assign(self.avg_activation, new_act_avg)
+
+        return [train_op, update_act_op]
