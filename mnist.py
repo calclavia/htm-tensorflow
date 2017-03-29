@@ -30,56 +30,73 @@ def main():
     mnist = input_data.read_data_sets("data/", one_hot=False)
 
     # Process data using simple black and white encoder
-    input_set = [[np.round(x)] for x in mnist.train.images]
+    total_num_data = len(mnist.train.images) // 2
+    num_data = int(total_num_data * 0.8)
+    num_validate = total_num_data - num_data
 
-    with tf.Session() as sess:
+    input_set = [[np.round(x)] for x in mnist.train.images[:num_data]]
+    val_set = [[np.round(x)] for x in mnist.train.images[num_data:num_data+num_validate]]
+    val_labels = mnist.train.labels[num_data:num_data+num_validate]
+
+    # Find one of each label
+    label_indicies = {}
+
+    for i, label in enumerate(mnist.train.labels):
+        if label not in label_indicies:
+            label_indicies[label] = i
+
+        if len(label_indicies) == 10:
+            break
+
+    def validate(sess):
+        print('Validating...')
+        # Retrieve label mapping
+        label_mappings = {}
+
+        for label in range(10):
+            x = [mnist.train.images[label_indicies[label]]]
+            label_mappings[label] = sess.run(model.y, feed_dict={ model.x: x })
+
+        correct = 0
+        total = 0
+        for i, x in enumerate(tqdm(val_set)):
+            result = sess.run(model.y, feed_dict={ model.x: x })
+
+            # Nearest neighbor
+            closest_label = None
+            closest_dist = float('inf')
+
+            for label, mapping in label_mappings.items():
+                diff = mapping - result
+                dist = np.dot(diff[0], diff[0])
+                if dist < closest_dist:
+                    closest_label = label
+                    closest_dist = dist
+
+            if closest_label == val_labels[i]:
+                correct += 1
+            total += 1
+
+        print('Accuracy: {}'.format(correct / total))
+
+    def train(sess):
+        for epoch in range(epochs):
+            print('=== Epoch ' + str(epoch) + ' ===')
+            validate(sess)
+
+            # Shuffle input
+            order = np.random.permutation(len(input_set))
+
+            # Train HTM layer
+            for i in tqdm(order):
+                x = input_set[i]
+                sess.run(model.train_ops, feed_dict={ model.x: x })
+
+    with tf.device('cpu:0'), tf.Session() as sess:
         # Run the 'init' op
         sess.run(tf.global_variables_initializer())
 
-        for epoch in range(epochs):
-            print('===     Epoch ' + str(epoch) + '     ===')
-            for i, x in enumerate(tqdm(input_set)):
-                sess.run(model.train_ops, feed_dict={ model.x: x })
-
-            """
-            print(' == Clustering ==')
-            Take all the inputs and determine its cluster based on
-            average values.
-            ""
-            counts = [0 for _ in range(dim[1])]
-            clusters = [0 for _ in range(dim[1])]
-
-            for input, label in zip(input_set, mnist.train.labels):
-                clusters[label] += sess.run(layer.y, feed_dict={layer.x: input})
-                counts[label] += 1
-
-            for c in range(len(clusters)):
-                clusters[c] /= counts[c]
-
-            print(sess.run(layer.p))
-            print(clusters[0])
-            print(clusters[1])
-
-            print(' == Validating == ')
-
-            correct = 0
-            for input, c in zip(mnist.validation.images, mnist.validation.labels):
-                # Find best match in cluster
-                best_class = None
-                min_norm = inf
-                output = sess.run(layer.y, feed_dict={layer.x: [input]})
-                for k, cluster in enumerate(clusters):
-                    diff = np.linalg.norm(cluster - output)
-                    if diff < min_norm:
-                        min_norm = diff
-                        best_class = k
-
-                # Validate if best class is correct
-                if c == best_class:
-                    correct += 1
-
-            print('Accuracy: ', correct / float(len(mnist.validation.images)))
-            """
+        train(sess)
 
 if __name__ == '__main__':
     main()
