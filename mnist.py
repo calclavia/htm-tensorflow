@@ -25,7 +25,7 @@ htm_units = 1024
 
 class HTMModel:
     def __init__(self):
-        pooler = SpatialPooler(htm_units, lr=1e-2)
+        pooler = SpatialPooler(htm_units, lr=1e-3)
         # Model input
         self.x = tf.placeholder(tf.float32, [1, input_units])
         self.y = pooler(self.x)
@@ -49,7 +49,7 @@ def main():
     all_data = []
 
     print('Processing data...')
-    for img in tqdm(mnist.train.images[:10000]):
+    for img in tqdm(mnist.train.images):
         img_data = []
         for pixel in img:
             # one-hot representation
@@ -57,7 +57,7 @@ def main():
             img_data += list(one_hot(index, pixel_bits))
         all_data.append([img_data])
 
-    all_labels = [one_hot(x, num_classes) for x in mnist.train.labels[:10000]]
+    all_labels = [one_hot(x, num_classes) for x in mnist.train.labels]
 
     num_data = int(len(all_data) * validation_split)
     num_validate = len(all_data) - num_data
