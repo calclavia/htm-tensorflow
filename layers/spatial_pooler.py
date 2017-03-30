@@ -65,7 +65,7 @@ class SpatialPooler(Layer):
         act_indicies = tf.to_int64(tf.reshape(tf.stack([batch_ids, act_indicies], axis=2), [-1, 2]))
         act_vals = tf.ones((batch_size * self.top_k,))
         output_shape = tf.to_int64(tf.shape(overlap))
-        print(act_indicies, act_vals, output_shape)
+
         activation = tf.SparseTensor(act_indicies, act_vals, output_shape)
         # TODO: Keeping it as a sparse tensor is more efficient.
         activation = tf.sparse_tensor_to_dense(activation, validate_indices=False)
@@ -82,17 +82,17 @@ class SpatialPooler(Layer):
         Ignoring all non-connections.
         Connections are clipped between 0 and 1.
         """
-        # Construct a binary connection matrix with all non-active mini-columns
-        # masked to zero. This contains all connections to active units.
-        # Multiply using broadcasting behavior to mask out inactive units.
-        # TODO: We could take advantage of sparsity for computation efficiency?
-        active_cons = y * self.connection
-
         # Shift input X from 0, 1 to -1, 1.
         x_shifted = 2 * x - 1
+
+        # TODO: We could take advantage of sparsity for computation efficiency?
+
         # Compute delta matrix, which contains -1 for all connections to punish
         # and 1 for all connections to reinforce. Use broadcasting behavior.
-        delta = tf.transpose(x_shifted * tf.transpose(active_cons))
+        batch_size = tf.to_float(tf.shape(x)[0])
+        # active_cons = y * self.connection
+        # delta = tf.transpose(x_shifted * tf.transpose(active_cons))
+        delta = tf.einsum('ij,ik,jk->jk', x_shifted, y, self.connection) / batch_size
 
         # Apply learning rate multiplier
         new_p = tf.clip_by_value(self.p + self.lr * delta, 0, 1)
@@ -101,7 +101,8 @@ class SpatialPooler(Layer):
         train_op = tf.assign(self.p, new_p)
 
         # Update the average activation levels
-        new_act_avg = ((self.duty_cycle - 1) * self.avg_activation + y) / self.duty_cycle
+        avg_activation = tf.reduce_mean(y, axis=0, keep_dims=True)
+        new_act_avg = ((self.duty_cycle - 1) * self.avg_activation + avg_activation) / self.duty_cycle
         update_act_op = tf.assign(self.avg_activation, new_act_avg)
 
         return [train_op, update_act_op]

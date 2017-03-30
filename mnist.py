@@ -22,10 +22,11 @@ pixel_bits = 4
 validation_split = 0.9
 input_units = num_pixels * pixel_bits
 htm_units = 2048
+batch_size = 32
 
 class HTMModel:
     def __init__(self):
-        pooler = SpatialPooler(htm_units, lr=1e-3)
+        pooler = SpatialPooler(htm_units, lr=1e-2)
         # Model input
         self.x = tf.placeholder(tf.float32, [None, input_units])
         self.y = pooler(self.x)
@@ -62,7 +63,7 @@ def main():
     num_data = int(len(all_data) * validation_split)
     num_validate = len(all_data) - num_data
 
-    input_set = all_data[:num_data]
+    input_set = np.array(all_data[:num_data])
     input_labels = all_labels[:num_data]
     val_set = all_data[num_data:num_data+num_validate]
     val_labels = all_labels[num_data:num_data+num_validate]
@@ -77,24 +78,24 @@ def main():
         loss, accuracy = model.classifier.evaluate(np.array(all_outputs), np.array(val_labels))
         print('Accuracy: {}'.format(accuracy))
 
-    def train(sess):
-        print('Training...')
+    def train_htm(sess):
+        print('Training HTM...')
 
         # Train HTM layer
-        all_outputs = []
-        all_labels = []
-
         # Shuffle input
         order = np.random.permutation(len(input_set))
 
-        for i in tqdm(order):
-            x = input_set[i]
-            output, *_ = sess.run([model.y, model.train_ops], feed_dict={ model.x: [x] })
-            all_outputs.append(output[0])
-            all_labels.append(input_labels[i])
+        for i in tqdm(range(0, len(order) + 1 - batch_size, batch_size)):
+            # Mini-batch training
+            batch_indices = order[i:i+batch_size]
+            x = [input_set[ii] for ii in batch_indices]
+            sess.run(model.train_ops, feed_dict={ model.x: x })
 
+    def train_classifier(sess):
+        print('Training classifier...')
         # Train classifier
-        model.classifier.fit(np.array(all_outputs), np.array(all_labels), epochs=10)
+        all_outputs = sess.run(model.y, feed_dict={ model.x: input_set })
+        model.classifier.fit(np.array(all_outputs), np.array(input_labels), epochs=10)
 
     with tf.Session() as sess:
         # Run the 'init' op
@@ -102,7 +103,8 @@ def main():
 
         for epoch in range(epochs):
             print('=== Epoch ' + str(epoch) + ' ===')
-            train(sess)
+            train_htm(sess)
+            train_classifier(sess)
             validate(sess)
 
 if __name__ == '__main__':
