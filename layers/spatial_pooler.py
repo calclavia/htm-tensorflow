@@ -7,7 +7,7 @@ class SpatialPooler(Layer):
     """
     Represents the spatial pooling computation layer
     """
-    def __init__(self, output_dim, sparsity=0.02, lr=1e-2, pool_density=1,
+    def __init__(self, output_dim, sparsity=0.02, lr=1e-2, pool_density=0.9,
                  duty_cycle=1000, boost_strength=100, **kwargs):
         """
         Args:
@@ -57,11 +57,16 @@ class SpatialPooler(Layer):
         # Compute active mini-columns.
         # The top k activations of given sparsity activates
         # TODO: Implement stimulus threshold
-        # TODO: Hard coded such that batch is not supported.
+        batch_size = tf.shape(x)[0]
         _, act_indicies = tf.nn.top_k(overlap, k=self.top_k, sorted=False)
-        act_indicies = tf.to_int64(tf.pad(tf.reshape(act_indicies, [self.top_k, 1]), [[0, 0], [1, 0]]))
-        act_vals = tf.ones((self.top_k,))
-        activation = tf.SparseTensor(act_indicies, act_vals, [1, self.output_dim])
+        # Create a matrix of repeated batch IDs
+        batch_ids = tf.tile(tf.reshape(tf.range(0, batch_size), [-1, 1]), [1, self.top_k])
+        # Stack the batch IDs to generate 2D indices of activated units
+        act_indicies = tf.to_int64(tf.reshape(tf.stack([batch_ids, act_indicies], axis=2), [-1, 2]))
+        act_vals = tf.ones((batch_size * self.top_k,))
+        output_shape = tf.to_int64(tf.shape(overlap))
+        print(act_indicies, act_vals, output_shape)
+        activation = tf.SparseTensor(act_indicies, act_vals, output_shape)
         # TODO: Keeping it as a sparse tensor is more efficient.
         activation = tf.sparse_tensor_to_dense(activation, validate_indices=False)
         return activation
@@ -80,6 +85,7 @@ class SpatialPooler(Layer):
         # Construct a binary connection matrix with all non-active mini-columns
         # masked to zero. This contains all connections to active units.
         # Multiply using broadcasting behavior to mask out inactive units.
+        # TODO: We could take advantage of sparsity for computation efficiency?
         active_cons = y * self.connection
 
         # Shift input X from 0, 1 to -1, 1.

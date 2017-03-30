@@ -10,7 +10,7 @@ class SPTest(unittest.TestCase):
         Test forward computation
         """
         layer = SpatialPooler(4, pool_density=1, boost_strength=0)
-        x = tf.placeholder(tf.float32, [1, 4], name='Input')
+        x = tf.placeholder(tf.float32, [None, 4], name='Input')
         y = layer(x)
 
         with tf.Session() as sess:
@@ -25,15 +25,15 @@ class SPTest(unittest.TestCase):
             ]))
 
             # Compute
-            result = sess.run(y, { x: [[1, 1, 0, 1]] })
-            test.assert_array_equal(result, [[0, 0, 1, 0]])
+            result = sess.run(y, { x: [[1, 1, 0, 1], [1, 1, 0, 0]] })
+            test.assert_array_equal(result[0], [0, 0, 1, 0])
 
     def test_train(self):
         """
         Test forward computation
         """
         layer = SpatialPooler(4, lr=0.1, pool_density=1, boost_strength=0)
-        x = tf.placeholder(tf.float32, [1, 4], name='Input')
+        x = tf.placeholder(tf.float32, [None, 4], name='Input')
         layer.build([1, 4])
         train = layer.train(x, tf.constant([[0., 1, 0, 1]]))
 
