@@ -5,35 +5,41 @@ Make sure the MNIST dataset is in the data/ folder
 import numpy as np
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
+from keras.layers import Input, Dense
+from keras.models import Model
 from tqdm import tqdm
+import random
 
 from math import *
 from layers import SpatialPooler
+from util import one_hot
 
-import matplotlib.pyplot as plt
+epochs = 100
 
-epochs = 10
-
+num_classes = 10
 num_pixels = 784
 pixel_bits = 4
 validation_split = 0.8
+input_units = num_pixels * pixel_bits
+htm_units = 1024
 
-class Model:
+class HTMModel:
     def __init__(self):
-        pooler = SpatialPooler(1024, lr=1e-2)
+        pooler = SpatialPooler(htm_units, lr=1e-2)
         # Model input
-        self.x = tf.placeholder(tf.float32, [1, num_pixels * pixel_bits])
+        self.x = tf.placeholder(tf.float32, [1, input_units])
         self.y = pooler(self.x)
         self.train_ops = pooler.train_ops
 
-def one_hot(i, nb_classes):
-    arr = np.zeros(nb_classes)
-    arr[i] = 1
-    return arr
+        # Build classifier
+        classifier_in = Input((htm_units,))
+        classifier_out = Dense(num_classes, activation='softmax')(classifier_in)
+        self.classifier = Model(classifier_in, classifier_out)
+        self.classifier.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc'])
 
 def main():
     # Build a model
-    model = Model()
+    model = HTMModel()
 
     # Load MNSIT
     print('Loading data...')
@@ -51,74 +57,56 @@ def main():
             img_data += list(one_hot(index, pixel_bits))
         all_data.append([img_data])
 
-    all_labels = mnist.train.labels[:10000]
+    all_labels = [one_hot(x, num_classes) for x in mnist.train.labels[:10000]]
 
     num_data = int(len(all_data) * validation_split)
     num_validate = len(all_data) - num_data
 
     input_set = all_data[:num_data]
+    input_labels = all_labels[:num_data]
     val_set = all_data[num_data:num_data+num_validate]
     val_labels = all_labels[num_data:num_data+num_validate]
 
-    # Find one of each label
-    label_indicies = {}
-
-    for i, label in enumerate(mnist.train.labels):
-        if label not in label_indicies:
-            label_indicies[label] = i
-
-        if len(label_indicies) == 10:
-            break
-
     def validate(sess):
         print('Validating...')
-        # Retrieve label mapping
-        label_mappings = {}
 
-        for label in range(10):
-            x = all_data[label_indicies[label]]
-            label_mappings[label] = sess.run(model.y, feed_dict={ model.x: x })
-
-        correct = 0
-        total = 0
+        # Feed into HTM layer
+        all_outputs = []
         for i, x in enumerate(tqdm(val_set)):
-            result = sess.run(model.y, feed_dict={ model.x: x })
+            output = sess.run(model.y, feed_dict={ model.x: x })
+            all_outputs.append(output[0])
 
-            # Nearest neighbor
-            closest_label = None
-            closest_dist = float('inf')
-
-            for label, mapping in label_mappings.items():
-                diff = mapping - result
-                dist = np.dot(diff[0], diff[0])
-                if dist < closest_dist:
-                    closest_label = label
-                    closest_dist = dist
-
-            if closest_label == val_labels[i]:
-                correct += 1
-            total += 1
-
-        print('Accuracy: {}'.format(correct / total))
+        # Feed into classifier layer
+        loss, accuracy = model.classifier.evaluate(np.array(all_outputs), np.array(val_labels))
+        print('Accuracy: {}'.format(accuracy))
 
     def train(sess):
-        for epoch in range(epochs):
-            print('=== Epoch ' + str(epoch) + ' ===')
-            validate(sess)
+        print('Training...')
 
-            # Shuffle input
-            order = np.random.permutation(len(input_set))
+        # Train HTM layer
+        all_outputs = []
+        all_labels = []
 
-            # Train HTM layer
-            for i in tqdm(order):
-                x = input_set[i]
-                sess.run(model.train_ops, feed_dict={ model.x: x })
+        # Shuffle input
+        order = np.random.permutation(len(input_set))
+
+        for i in tqdm(order):
+            x = input_set[i]
+            output, *_ = sess.run([model.y, model.train_ops], feed_dict={ model.x: x })
+            all_outputs.append(output[0])
+            all_labels.append(input_labels[i])
+
+        # Train classifier
+        model.classifier.fit(np.array(all_outputs), np.array(all_labels), epochs=10)
 
     with tf.Session() as sess:
         # Run the 'init' op
         sess.run(tf.global_variables_initializer())
 
-        train(sess)
+        for epoch in range(epochs):
+            print('=== Epoch ' + str(epoch) + ' ===')
+            train(sess)
+            validate(sess)
 
 if __name__ == '__main__':
     main()
