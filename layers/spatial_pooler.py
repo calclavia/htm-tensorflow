@@ -46,8 +46,8 @@ class SpatialPooler(Layer):
     def call(self, x):
         # Boosting calculations
         # The recent activity in the mini-column's (global) neighborhood
-        unidentity = tf.constant(-np.identity(self.output_dim) + 1, dtype=tf.float32)
-        neighbor_activity = tf.matmul(self.avg_activation, unidentity) / (self.output_dim - 1)
+        neighbor_mask = tf.constant(-np.identity(self.output_dim) + 1, dtype=tf.float32)
+        neighbor_activity = tf.matmul(self.avg_activation, neighbor_mask) / (self.output_dim - 1)
         boost_factor = tf.exp(-self.boost_strength * (self.avg_activation - neighbor_activity))
 
         # TODO: Only global inhibition is implemented.
@@ -62,7 +62,6 @@ class SpatialPooler(Layer):
         act_indicies = tf.to_int64(tf.pad(tf.reshape(act_indicies, [self.top_k, 1]), [[0, 0], [1, 0]]))
         act_vals = tf.ones((self.top_k,))
         activation = tf.SparseTensor(act_indicies, act_vals, [1, self.output_dim])
-        print(activation,  self.output_dim)
         # TODO: Keeping it as a sparse tensor is more efficient.
         activation = tf.sparse_tensor_to_dense(activation, validate_indices=False)
         return activation
