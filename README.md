@@ -24,3 +24,5 @@ http://yann.lecun.com/exdb/mnist/
 ```
 python mnist.py
 ```
+
+Results using the provided hyperparameters achieve ~95% validation accuracy.
